@@ -53,8 +53,9 @@ function isValidQuoteObject(q) {
 
 /**
  * Simulates fetching data from a server API (using Session Storage as the mock server).
+ * REQUIRED FUNCTION NAME.
  */
-function fetchServerQuotes() {
+function fetchQuotesFromServer() {
     return new Promise(resolve => {
         setTimeout(() => {
             let serverData = sessionStorage.getItem(SERVER_STORAGE_KEY);
@@ -93,7 +94,7 @@ async function syncData() {
     notificationElement.style.backgroundColor = '#ffcc80';
 
     try {
-        const serverQuotes = await fetchServerQuotes();
+        const serverQuotes = await fetchQuotesFromServer(); // <--- Function call updated
         
         let localQuoteCount = quotes.length;
         let serverQuoteCount = serverQuotes.length;
@@ -450,7 +451,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const parsed = JSON.parse(last);
             if (isValidQuoteObject(parsed)) {
                 console.log(`Restored last viewed quote from session: ${parsed.text}`);
-                // You may want to show this quote, but we prioritize the filter display
             }
         }
     } catch (err) {
