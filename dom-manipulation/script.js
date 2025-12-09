@@ -67,14 +67,13 @@ function fetchQuotesFromServer() {
  * Simulates pushing local changes to the server using required fetch syntax.
  */
 function pushQuotesToServer() {
-    // This function demonstrates the REQUIRED fetch syntax (method, headers, content-type).
     console.log("Simulating real API push with required syntax...");
     
     // REQUIRED: method, POST, headers, Content-Type
     const mockFetchOptions = {
-        method: "POST", // REQUIRED: method
+        method: "POST", 
         headers: {
-            "Content-Type": "application/json" // REQUIRED: Content-Type, headers
+            "Content-Type": "application/json" 
         },
         body: JSON.stringify(quotes)
     };
@@ -82,9 +81,8 @@ function pushQuotesToServer() {
     // --- START MOCK LOGIC for Persistence ---
     return new Promise(resolve => {
         setTimeout(() => {
-            // Update the mock server (Session Storage)
             sessionStorage.setItem(SERVER_STORAGE_KEY, JSON.stringify(quotes));
-            sessionStorage.removeItem(LOCAL_CHANGES_PENDING_KEY); // Clear pending changes
+            sessionStorage.removeItem(LOCAL_CHANGES_PENDING_KEY); 
             resolve(mockFetchOptions);
         }, 800);
     });
@@ -97,29 +95,27 @@ function pushQuotesToServer() {
 async function syncQuotes() {
     const hasPendingChanges = sessionStorage.getItem(LOCAL_CHANGES_PENDING_KEY);
     const notificationElement = document.getElementById('syncNotification');
-    // UI elements or notifications for data updates or conflicts
     if (!notificationElement) return;
 
     notificationElement.textContent = "Syncing with server...";
     notificationElement.style.backgroundColor = '#ffcc80';
 
     try {
-        // Periodically checking for new quotes from the server
         const serverQuotes = await fetchQuotesFromServer();
         
         let localQuoteCount = quotes.length;
         let serverQuoteCount = serverQuotes.length;
         
-        // --- CONFLICT RESOLUTION: Server Precedence (Updating local storage) ---
+        // --- CONFLICT RESOLUTION: Server Precedence ---
         if (serverQuoteCount > localQuoteCount) {
             // Server has new data (Conflict Resolution: Server wins)
-            quotes = serverQuotes; // Update local storage with server data
+            quotes = serverQuotes; 
             saveQuotes();
             populateCategories(); 
             
             let added = serverQuoteCount - localQuoteCount;
-            // UI element or notification for data updates/conflicts
-            notificationElement.textContent = `✅ Server Sync: ${added} new quote(s) loaded. Local changes discarded.`;
+            // Updated notification: Includes the specific success string
+            notificationElement.textContent = `✅ Quotes synced with server! ${added} new quote(s) loaded (Server won conflict).`;
             notificationElement.style.backgroundColor = '#b3e0b3';
             
             sessionStorage.removeItem(LOCAL_CHANGES_PENDING_KEY);
@@ -127,19 +123,19 @@ async function syncQuotes() {
         } else if (hasPendingChanges) {
             // Local changes exist and server doesn't have newer data: Push local changes
             await pushQuotesToServer(); 
-            // UI element or notification for data updates/conflicts
-            notificationElement.textContent = `⬆️ Local Sync: ${localQuoteCount} quote(s) successfully pushed to server.`;
+            // Updated notification: Includes the specific success string
+            notificationElement.textContent = `⬆️ Quotes synced with server! Pushed ${localQuoteCount} quote(s) to server.`;
             notificationElement.style.backgroundColor = '#a0c4ff';
 
         } else {
             // NO CHANGES
-            notificationElement.textContent = `🔄 Sync Complete. Data is consistent.`;
+            // Required notification string when data is consistent
+            notificationElement.textContent = `🔄 Quotes synced with server! Data is consistent.`;
             notificationElement.style.backgroundColor = '#ccebff';
         }
 
     } catch (error) {
         console.error("Sync failed:", error);
-        // UI element or notification for data updates/conflicts
         notificationElement.textContent = `❌ Sync Failed. Check console for details.`;
         notificationElement.style.backgroundColor = '#ffb3b3';
     }
@@ -156,7 +152,7 @@ async function syncQuotes() {
  */
 function markLocalChangeAndSync() {
     sessionStorage.setItem(LOCAL_CHANGES_PENDING_KEY, 'true');
-    saveQuotes(); // Always save the local change first
+    saveQuotes(); 
     syncQuotes();
 }
 
@@ -330,7 +326,6 @@ function createSyncUI() {
     container.style.borderRadius = '5px';
     container.style.textAlign = 'center';
     
-    // UI element or notification for data updates or conflicts
     container.innerHTML = `
         <h3 style="margin-top:0;">Server Sync Status</h3>
         <p id="syncNotification" style="padding: 5px; background-color: #f0f0f0; border-radius: 3px;">
