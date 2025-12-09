@@ -54,8 +54,11 @@ function isValidQuoteObject(q) {
 /**
  * Simulates fetching data from a server API (using Session Storage as the mock server).
  * REQUIRED FUNCTION NAME.
+ * NOTE: For a real application, you would replace the internal logic with:
+ * fetch('https://jsonplaceholder.typicode.com/posts').then(res => res.json())...
  */
 function fetchQuotesFromServer() {
+    // --- START MOCK LOGIC for Conflict Resolution ---
     return new Promise(resolve => {
         setTimeout(() => {
             let serverData = sessionStorage.getItem(SERVER_STORAGE_KEY);
@@ -67,6 +70,7 @@ function fetchQuotesFromServer() {
             resolve(JSON.parse(serverData));
         }, 1000); // Simulate 1 second network latency
     });
+    // --- END MOCK LOGIC for Conflict Resolution ---
 }
 
 /**
@@ -94,7 +98,7 @@ async function syncData() {
     notificationElement.style.backgroundColor = '#ffcc80';
 
     try {
-        const serverQuotes = await fetchQuotesFromServer(); // <--- Function call updated
+        const serverQuotes = await fetchQuotesFromServer();
         
         let localQuoteCount = quotes.length;
         let serverQuoteCount = serverQuotes.length;
