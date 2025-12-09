@@ -257,3 +257,104 @@ document.addEventListener("DOMContentLoaded", () => {
   // Ensure categorySelect has up-to-date options
   if (catSelect) updateCategoryOptions(catSelect);
 });
+// --- Constants (Ensure these are at the top of your script) ---
+const LOCAL_STORAGE_KEY = 'inspirationalQuotes';
+const LOCAL_FILTER_KEY = 'lastSelectedFilter'; 
+
+// --- Web Storage Functions (Must be defined to support filtering and adding) ---
+
+// Saves the current 'quotes' array to Local Storage.
+function saveQuotes() {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(quotes));
+}
+
+// Loads quotes (assumed to be called in DOMContentLoaded)
+// function loadQuotes() { ... } // (Assumed to be defined elsewhere in your script)
+function populateCategories() {
+    const select = document.getElementById("categorySelect");
+    if (!select) return; 
+
+    select.innerHTML = ""; // Clear existing options
+
+    // Add "All" option
+    const allOption = document.createElement("option");
+    allOption.value = "All";
+    allOption.textContent = "All Categories";
+    select.appendChild(allOption);
+
+    // Extract unique categories using a Set
+    const categories = [...new Set(quotes.map(q => q.category))];
+
+    categories.forEach(cat => {
+        const option = document.createElement("option");
+        option.value = cat;
+        option.textContent = cat;
+        select.appendChild(option);
+    });
+
+    // Restore last selected filter (Step 2 requirement)
+    const lastFilter = localStorage.getItem(LOCAL_FILTER_KEY);
+    if (lastFilter && select.querySelector(`option[value="${lastFilter}"]`)) {
+        select.value = lastFilter;
+    }
+    
+    // Apply the filter after population/restoration
+    filterQuotes(select.value);
+}
+function filterQuotes(category) {
+    const quoteDisplay = document.getElementById("quoteDisplay");
+    const categorySelect = document.getElementById("categorySelect");
+    
+    // Determine the category to filter by
+    const selectedCategory = category || (categorySelect ? categorySelect.value : "All");
+
+    // Filter the quotes array
+    const filteredQuotes =
+        selectedCategory === "All"
+            ? quotes
+            : quotes.filter(q => q.category.toLowerCase() === selectedCategory.toLowerCase());
+
+    // Update displayed quotes
+    if (quoteDisplay) {
+        if (filteredQuotes.length === 0) {
+            quoteDisplay.innerHTML = `<p>No quotes available for the category: <b>${selectedCategory}</b></p>`;
+        } else {
+            // Display all filtered quotes (instead of just one random one)
+            const listHtml = filteredQuotes.map(q => 
+                `<li style="margin-bottom: 8px;">"${q.text}" - <i>${q.category}</i></li>`
+            ).join('');
+            quoteDisplay.innerHTML = `<h3>Showing Quotes in Category: ${selectedCategory} (${filteredQuotes.length})</h3><ul>${listHtml}</ul>`;
+        }
+    }
+
+    // Save the filter preference to Local Storage (Step 2 requirement)
+    localStorage.setItem(LOCAL_FILTER_KEY, selectedCategory);
+}
+// --- Wiring within document.addEventListener("DOMContentLoaded", ...) ---
+document.addEventListener("DOMContentLoaded", () => {
+    // ... (loadQuotes() call must happen here first)
+
+    // Ensure category selector is created (replace your old createCategorySelector)
+    createCategorySelector(); 
+
+    // Ensure the new filter function runs on selector change
+    const selectElement = document.getElementById("categorySelect");
+    if(selectElement) {
+        selectElement.addEventListener("change", () => filterQuotes(selectElement.value));
+    }
+
+    // Populate categories and load the last saved filter preference
+    populateCategories();
+    
+    // ... (rest of the initialization, like createAddQuoteForm(), etc.)
+});
+
+// A necessary adjustment to your createCategorySelector to hook the event listener:
+function createCategorySelector() {
+    let select = document.getElementById("categorySelect");
+    if (select) {
+        select.addEventListener("change", () => filterQuotes(select.value));
+        return select;
+    }
+    // ... (rest of the creation logic)
+}
