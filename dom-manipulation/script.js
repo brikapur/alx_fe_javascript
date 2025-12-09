@@ -62,6 +62,37 @@ function createAddQuoteForm() {
 
   document.body.appendChild(container);
 }
+function addQuoteToLocalStorage() {
+    const text = document.getElementById("quote-text").value.trim();
+    const author = document.getElementById("quote-author").value.trim();
+
+    if (text === "" || author === "") {
+        alert("Please enter both quote and author.");
+        return;
+    }
+
+    // Load existing quotes
+    let quotes = JSON.parse(localStorage.getItem("quotes")) || [];
+
+    // Add new one
+    quotes.push({
+        text: text,
+        author: author
+    });
+
+    // Save back
+    localStorage.setItem("quotes", JSON.stringify(quotes));
+
+    // Optional: refresh your quote list if you have a function
+    if (typeof displayQuotes === "function") {
+        displayQuotes();
+    }
+
+    // Clear inputs
+    document.getElementById("quote-text").value = "";
+    document.getElementById("quote-author").value = "";
+}
+
 
 // Update category options in dropdown
 function updateCategoryOptions(select) {
@@ -128,3 +159,4 @@ document.addEventListener("DOMContentLoaded", () => {
   const btn = document.getElementById("newQuote");
   btn.addEventListener("click", showRandomQuote);
 });
+
