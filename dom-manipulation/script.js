@@ -1,7 +1,9 @@
 // --- Global Constants and Keys ---
 const LOCAL_STORAGE_KEY = 'inspirationalQuotes';
-const LOCAL_FILTER_KEY = 'lastSelectedFilter'; 
-const SESSION_LAST_VIEWED_KEY = 'lastViewedQuote'; 
+const LOCAL_FILTER_KEY = 'lastSelectedFilter'; // Local Storage for filter preference
+const SESSION_LAST_VIEWED_KEY = 'lastViewedQuote'; // Session Storage for last viewed quote
+const SERVER_STORAGE_KEY = 'mockServerQuotes'; // Session Storage to mock server data
+const LOCAL_CHANGES_PENDING_KEY = 'hasLocalChanges'; // Session Storage for sync status
 
 // Initial quotes array (used only if Local Storage is empty)
 let quotes = [
@@ -10,20 +12,7 @@ let quotes = [
     { text: "Success is not final; failure is not fatal: It is the courage to continue that counts.", category: "Success" },
 ];
 
-// --- Web Storage Functions ---
-
-/**
- * Saves the current 'quotes' array and the filter preference to Local Storage.
- */
-function saveQuotes() {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(quotes));
-    
-    // Save the current filter preference (Task 2)
-    const filter = document.getElementById("categoryFilter");
-    if (filter) {
-         localStorage.setItem(LOCAL_FILTER_KEY, filter.value);
-    }
-}
+// --- Web Storage & Persistence Functions ---
 
 /**
  * Loads quotes from Local Storage on application startup.
@@ -40,21 +29,129 @@ function loadQuotes() {
 }
 
 /**
- * Helper function for JSON validation (used in import and session storage check).
+ * Saves the current 'quotes' array and the filter preference to Local Storage.
+ */
+function saveQuotes() {
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(quotes));
+    
+    // Save the current filter preference
+    const filter = document.getElementById("categoryFilter");
+    if (filter) {
+         localStorage.setItem(LOCAL_FILTER_KEY, filter.value);
+    }
+}
+
+/**
+ * Helper function for JSON validation.
  */
 function isValidQuoteObject(q) {
     return q && typeof q.text === 'string' && q.text.trim() !== '' && 
            typeof q.category === 'string' && q.category.trim() !== '';
 }
 
+// --- Server Sync Simulation (Task 3) ---
 
-// --- Filtering and Category Management (Task 2 & 3) ---
+/**
+ * Simulates fetching data from a server API (using Session Storage as the mock server).
+ */
+function fetchServerQuotes() {
+    return new Promise(resolve => {
+        setTimeout(() => {
+            let serverData = sessionStorage.getItem(SERVER_STORAGE_KEY);
+            if (!serverData) {
+                // Initialize server data with the current local data if server is empty
+                serverData = localStorage.getItem(LOCAL_STORAGE_KEY) || JSON.stringify(quotes);
+                sessionStorage.setItem(SERVER_STORAGE_KEY, serverData);
+            }
+            resolve(JSON.parse(serverData));
+        }, 1000); // Simulate 1 second network latency
+    });
+}
+
+/**
+ * Simulates posting the current local quotes array to the server.
+ */
+function postLocalQuotesToServer() {
+    return new Promise(resolve => {
+        setTimeout(() => {
+            sessionStorage.setItem(SERVER_STORAGE_KEY, JSON.stringify(quotes));
+            sessionStorage.removeItem(LOCAL_CHANGES_PENDING_KEY); // Clear pending changes
+            resolve();
+        }, 800);
+    });
+}
+
+/**
+ * Primary sync function with Server Precedence conflict resolution.
+ */
+async function syncData() {
+    const hasPendingChanges = sessionStorage.getItem(LOCAL_CHANGES_PENDING_KEY);
+    const notificationElement = document.getElementById('syncNotification');
+    if (!notificationElement) return;
+
+    notificationElement.textContent = "Syncing with server...";
+    notificationElement.style.backgroundColor = '#ffcc80';
+
+    try {
+        const serverQuotes = await fetchServerQuotes();
+        
+        let localQuoteCount = quotes.length;
+        let serverQuoteCount = serverQuotes.length;
+        
+        // --- CONFLICT RESOLUTION: Server Precedence ---
+        if (serverQuoteCount > localQuoteCount) {
+            // Server has new data, overwrite local changes
+            quotes = serverQuotes;
+            saveQuotes();
+            populateCategories(); 
+            
+            let added = serverQuoteCount - localQuoteCount;
+            notificationElement.textContent = `✅ Server Sync: ${added} new quote(s) loaded. Local changes discarded.`;
+            notificationElement.style.backgroundColor = '#b3e0b3';
+            
+            sessionStorage.removeItem(LOCAL_CHANGES_PENDING_KEY);
+
+        } else if (hasPendingChanges) {
+            // Local changes exist and server doesn't have newer data: Push local changes
+            await postLocalQuotesToServer();
+            notificationElement.textContent = `⬆️ Local Sync: ${localQuoteCount} quote(s) successfully pushed to server.`;
+            notificationElement.style.backgroundColor = '#a0c4ff';
+
+        } else {
+            // NO CHANGES
+            notificationElement.textContent = `🔄 Sync Complete. Data is consistent.`;
+            notificationElement.style.backgroundColor = '#ccebff';
+        }
+
+    } catch (error) {
+        console.error("Sync failed:", error);
+        notificationElement.textContent = `❌ Sync Failed. Check console for details.`;
+        notificationElement.style.backgroundColor = '#ffb3b3';
+    }
+    
+    // Clear notification after a delay
+    setTimeout(() => {
+        notificationElement.textContent = 'Awaiting next sync...';
+        notificationElement.style.backgroundColor = '#f0f0f0';
+    }, 5000);
+}
+
+/**
+ * Marks that a local change has occurred and triggers a sync.
+ */
+function markLocalChangeAndSync() {
+    sessionStorage.setItem(LOCAL_CHANGES_PENDING_KEY, 'true');
+    saveQuotes(); // Always save the local change first
+    syncData();
+}
+
+// --- Filtering and Category Management (Task 2) ---
 
 /**
  * Populates the category dropdown menu dynamically and restores the last filter.
  */
 function populateCategories() {
-    const select = document.getElementById("categoryFilter"); // <--- CORRECTED ID
+    const select = document.getElementById("categoryFilter");
     if (!select) return; 
 
     select.innerHTML = ""; // Clear existing options
@@ -90,7 +187,7 @@ function populateCategories() {
  */
 function filterQuotes(category) {
     const quoteDisplay = document.getElementById("quoteDisplay");
-    const categoryFilter = document.getElementById("categoryFilter"); // <--- CORRECTED ID
+    const categoryFilter = document.getElementById("categoryFilter");
     
     const selectedCategory = category || (categoryFilter ? categoryFilter.value : "All");
 
@@ -115,12 +212,12 @@ function filterQuotes(category) {
     localStorage.setItem(LOCAL_FILTER_KEY, selectedCategory);
 }
 
-// --- Main Quote Logic ---
+// --- Main Quote Logic (Task 1 & 3) ---
 
 function showRandomQuote() {
     const quoteDisplay = document.getElementById("quoteDisplay");
 
-    const categoryFilter = document.getElementById("categoryFilter"); // <--- CORRECTED ID
+    const categoryFilter = document.getElementById("categoryFilter");
     const selectedCategory = categoryFilter ? categoryFilter.value : "All";
 
     const filteredQuotes =
@@ -138,12 +235,12 @@ function showRandomQuote() {
 
     quoteDisplay.textContent = `RANDOM: "${randomQuote.text}" — (${randomQuote.category})`;
 
-    // Use Session Storage (Task 1 Optional)
+    // Use Session Storage (Task 1)
     sessionStorage.setItem(SESSION_LAST_VIEWED_KEY, JSON.stringify(randomQuote));
 }
 
 /**
- * Adds a new quote, saves it, and updates the category dropdown (Task 3).
+ * Adds a new quote, marks it as a pending local change, and initiates sync (Task 3).
  */
 function addQuote() {
     const text = document.getElementById("newQuoteText").value.trim();
@@ -156,8 +253,8 @@ function addQuote() {
 
     quotes.push({ text, category });
 
-    // Save the updated list to Local Storage
-    saveQuotes(); 
+    // Mark the change and sync immediately
+    markLocalChangeAndSync();
     
     // Update the category dropdown (in case a new category was added)
     populateCategories(); 
@@ -165,7 +262,7 @@ function addQuote() {
     document.getElementById("newQuoteText").value = "";
     document.getElementById("newQuoteCategory").value = "";
 
-    alert("Quote added, saved locally, and filter categories updated!");
+    alert("Quote added locally and sync initiated.");
 }
 
 
@@ -213,10 +310,11 @@ function importFromJsonFile(event) {
                 }
             });
 
-            saveQuotes();
+            // Treat import as a local change
+            markLocalChangeAndSync(); 
             populateCategories(); 
 
-            alert(`Imported ${parsed.length} items. ${added} new quotes added.`);
+            alert(`Imported ${parsed.length} items. ${added} new quotes added. Sync initiated.`);
             event.target.value = "";
         } catch (err) {
             console.error("Import failed:", err);
@@ -227,7 +325,26 @@ function importFromJsonFile(event) {
     reader.readAsText(file);
 }
 
-// --- Dynamic UI Creation (Required for Task 2 HTML) ---
+// --- Dynamic UI Creation ---
+
+function createSyncUI() {
+    const container = document.createElement('div');
+    container.id = 'syncContainer';
+    container.style.marginTop = '15px';
+    container.style.padding = '10px';
+    container.style.border = '1px solid #ccc';
+    container.style.borderRadius = '5px';
+    container.style.textAlign = 'center';
+    
+    container.innerHTML = `
+        <h3 style="margin-top:0;">Server Sync Status</h3>
+        <p id="syncNotification" style="padding: 5px; background-color: #f0f0f0; border-radius: 3px;">
+            Initializing sync...
+        </p>
+        <button onclick="syncData()" style="margin-top: 5px;">Force Sync Now</button>
+    `;
+    document.body.prepend(container);
+}
 
 function createAddQuoteForm() {
     const container = document.getElementById("quoteFormContainer") || document.createElement("div");
@@ -244,11 +361,11 @@ function createAddQuoteForm() {
 }
 
 function createCategorySelector() {
-    let select = document.getElementById("categoryFilter"); // <--- CORRECTED ID
+    let select = document.getElementById("categoryFilter");
     if (select) return select;
 
     select = document.createElement("select");
-    select.id = "categoryFilter"; // <--- CORRECTED ID
+    select.id = "categoryFilter";
     select.style.marginRight = "10px";
     select.addEventListener("change", () => filterQuotes(select.value));
 
@@ -266,6 +383,7 @@ function createExportImportControls() {
     if (!controlsContainer) {
         controlsContainer = document.createElement("div");
         controlsContainer.id = "controlsContainer";
+        controlsContainer.style.marginBottom = '10px';
         document.body.prepend(controlsContainer);
     }
     
@@ -301,7 +419,7 @@ function createExportImportControls() {
 
 // --- Initialization ---
 document.addEventListener("DOMContentLoaded", () => {
-    // 1. Load data from Local Storage first
+    // 1. Load data from Local Storage
     loadQuotes(); 
 
     // 2. Create the display area
@@ -311,6 +429,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.body.prepend(quoteDisplay);
 
     // 3. Create all UI controls
+    createSyncUI(); // Task 3 UI
     createExportImportControls();
     createCategorySelector(); 
     createAddQuoteForm();
@@ -318,21 +437,26 @@ document.addEventListener("DOMContentLoaded", () => {
     // 4. Populate categories and apply the saved filter
     populateCategories(); 
 
-    // 5. Check Session Storage for last viewed quote (Optional Task 1)
+    // 5. Initial Data Sync (Task 3)
+    syncData();
+    
+    // 6. Periodic Data Sync
+    setInterval(syncData, 60000); // Sync every 60 seconds (1 minute)
+
+    // 7. Check Session Storage for last viewed quote (Optional Task 1)
     try {
         const last = sessionStorage.getItem(SESSION_LAST_VIEWED_KEY);
         if (last) {
             const parsed = JSON.parse(last);
             if (isValidQuoteObject(parsed)) {
-                // If a session quote is found, display it instead of running the filter display initially
-                quoteDisplay.innerHTML = `<p style="font-style:italic;">"${parsed.text}" — (${parsed.category}) [Restored from last session]</p>`;
-                return;
+                console.log(`Restored last viewed quote from session: ${parsed.text}`);
+                // You may want to show this quote, but we prioritize the filter display
             }
         }
     } catch (err) {
          console.warn("Session storage item was corrupt.", err);
     }
     
-    // If no session data is found, show the filtered quotes as determined by populateCategories/filterQuotes
-    filterQuotes(document.getElementById("categoryFilter").value); // <--- CORRECTED ID
+    // Initial display of filtered quotes
+    filterQuotes(document.getElementById("categoryFilter").value);
 });
