@@ -160,3 +160,100 @@ document.addEventListener("DOMContentLoaded", () => {
   btn.addEventListener("click", showRandomQuote);
 });
 
+function exportToJson() {
+  try {
+    const dataStr = JSON.stringify(quotes, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `quotes_${new Date().toISOString().slice(0,19).replace(/[:T]/g,"-")}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error("Export failed:", err);
+    alert("Could not export quotes.");
+  }
+}
+
+// -------------------- JSON Import --------------------
+function importFromJsonFile(event) {
+  const file = event.target && event.target.files && event.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      if (!Array.isArray(parsed)) throw new Error("JSON must be an array of quote objects.");
+
+      if (!parsed.every(isValidQuoteObject)) {
+        throw new Error("Each item must have non-empty 'text' and 'category' strings.");
+      }
+
+      // Merge while skipping duplicates (text + category uniqueness)
+      const existingSet = new Set(quotes.map(q => `${q.text}|||${q.category}`));
+      let added = 0;
+      parsed.forEach(q => {
+        const key = `${q.text}|||${q.category}`;
+        if (!existingSet.has(key)) {
+          quotes.push(q);
+          existingSet.add(key);
+          added++;
+        }
+      });
+
+      saveQuotes();
+      const sel = document.getElementById("categorySelect");
+      if (sel) updateCategoryOptions(sel);
+
+      alert(`Imported ${parsed.length} items. ${added} new quotes added (duplicates skipped).`);
+      // clear input so same file can be re-imported if needed
+      event.target.value = "";
+    } catch (err) {
+      console.error("Import failed:", err);
+      alert("Failed to import: " + err.message);
+      event.target.value = "";
+    }
+  };
+  reader.onerror = function(err) {
+    console.error("File read error", err);
+    alert("Could not read the file.");
+    event.target.value = "";
+  };
+  reader.readAsText(file);
+}
+
+// -------------------- Initialization --------------------
+document.addEventListener("DOMContentLoaded", () => {
+  // Load from localStorage
+  loadQuotes();
+
+  // Ensure UI controls exist and are wired
+  const catSelect = createCategorySelector(); // creates if missing and updates
+  createExportImportControls();
+  createAddQuoteForm();
+
+  // Wire show new quote button
+  const newQuoteBtn = document.getElementById("newQuote");
+  if (newQuoteBtn) newQuoteBtn.addEventListener("click", showRandomQuote);
+
+  // If session has last viewed quote, show it
+  try {
+    const last = sessionStorage.getItem(SESSION_LAST_VIEWED_KEY);
+    if (last) {
+      const parsed = JSON.parse(last);
+      if (isValidQuoteObject(parsed)) {
+        const quoteDisplay = document.getElementById("quoteDisplay");
+        if (quoteDisplay) quoteDisplay.textContent = `"${parsed.text}" — (${parsed.category})`;
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+
+  // Ensure categorySelect has up-to-date options
+  if (catSelect) updateCategoryOptions(catSelect);
+});
