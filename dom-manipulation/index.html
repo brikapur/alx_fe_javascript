@@ -10,8 +10,31 @@
     <div id="quoteDisplay"></div>
     <button id="newQuote">Show New Quote</button>
     <button id="export-quotes">Export Quotes</button>
-
-
+     <section>
+        <h2>Add Quote & Persist Data</h2>
+        <input type="text" id="quoteText" placeholder="Quote Text">
+        <input type="text" id="quoteCategory" placeholder="Category">
+        <button onclick="addQuote()">Add & Save Quote</button>
+        <p id="sessionInfo">Last Viewed (Session): Loading...</p>
+    </section>
+    <section>
+        <h2>JSON Data Import and Export</h2>
+        <button onclick="exportQuotes()">Export All Quotes to JSON</button>
+        
+        <p>Import Quotes from JSON File:</p>
+        <input type="file" id="importFile" accept=".json" onchange="importFromJsonFile(event)" />
+    </section>
+    <section>
+        <h2>Current Quotes (Persisted)</h2>
+        <ul id="quoteList">
+            </ul>
+    </section>
     <script src="script.js"></script>
   </body>
   </html>
+  
+
+
+   
+
+    
